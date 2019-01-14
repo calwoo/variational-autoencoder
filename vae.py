@@ -54,13 +54,20 @@ def vae(input):
     mean, std = encoder(input)
     codes = samples(mean, std)
     decoded = decoder(codes)
-    return decoded
+    return mean, std, decoded
 
 def loss_function(input, learning_rate):
-    outputs = autoencoder(input)
-    loss = -tf.reduce_mean(input * tf.log(outputs) + (1-input) * tf.log(1-outputs))
+    o_means, o_std, outputs = vae(input)
+    # loss is two parts-- first is the reconstruction loss
+    reconstruction_loss = -tf.reduce_mean(input * tf.log(outputs) + (1-input) * tf.log(1-outputs))
+    # then we have the KL divergence between encoder gaussian and the prior
+    # p(z) = N(z;0,1)
+    kullback_leibner = 0.5 * tf.reduce_sum(tf.log(tf.square(o_std)) - 1 + tf.square(o_means) + tf.square(o_std), 1)
+    # total loss is reconstruction + KL
+    loss = reconstruction_loss + kullback_leibner
     optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
     return loss, optimizer
+    
 
 def train(data, learning_rate, epochs=30):
     with tf.Session() as sess:
