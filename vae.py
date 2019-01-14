@@ -50,9 +50,10 @@ def samples(mean, std):
     samples = mean + std * epsilon
     return samples
 
-def autoencoder(input):
+def vae(input):
     mean, std = encoder(input)
-    decoded = decoder(encoded)
+    codes = samples(mean, std)
+    decoded = decoder(codes)
     return decoded
 
 def loss_function(input, learning_rate):
