@@ -71,22 +71,22 @@ def loss_function(input, learning_rate):
     return loss, optimizer
     
 
-def train(data, learning_rate, epochs=30):
+def train(sess, data, learning_rate, epochs=30):
+    loss, optimizer = loss_function(inputs, learning_rate)
+    sess.run(tf.global_variables_initializer())
+
     # we wanna save our spot so we don't have to constantly train this thing...
     saver = tf.train.Saver()
-    with tf.Session() as sess:
-        loss, optimizer = loss_function(inputs, learning_rate)
-        sess.run(tf.global_variables_initializer())
 
-        for i in range(epochs):
-            _loss, _ = sess.run([loss, optimizer],
-                feed_dict={inputs:data})
-            print("epoch %d, loss is %.03f" % (i, _loss))
+    for i in range(epochs):
+        _loss, _ = sess.run([loss, optimizer],
+            feed_dict={inputs:data})
+        print("epoch %d, loss is %.03f" % (i, _loss))
 
-            # save checkpoint every 5 epochs
-            if i % 5 == 0:
-                saver.save(sess, "./model")
-                print("saved the model for ya, chief!")
+        # save checkpoint every 5 epochs
+        if i % 5 == 0:
+            saver.save(sess, "./model/model")
+            print("saved the model for ya, chief!")
 
 def test():
     # display a 2D manifold of the digits
@@ -119,7 +119,10 @@ def test():
     plt.imshow(figure)
     plt.show()
 
-train(x_train, 0.01, epochs=5)
+sess = tf.Session()
+training_flag = True
+if training_flag:
+    train(sess, x_train, 0.01, epochs=5)
 test()
 
 # testing ground
