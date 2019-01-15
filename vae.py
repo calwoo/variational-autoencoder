@@ -62,9 +62,9 @@ def train(sess, data, learning_rate, epochs=30, restore=False):
             saver.save(sess, "./model/model.ckpt")
             print("saved the model for ya, chief!")
 
-def test():
+def test(sess):
     # display a 2D manifold of the digits
-    n = 10  # figure with 15x15 digits
+    n = 15  # figure with 15x15 digits
     digit_size = 28
     figure = np.zeros((digit_size * n, digit_size * n))
     # we will sample n points within [-15, 15] standard deviations
@@ -77,12 +77,13 @@ def test():
         for j, xi in enumerate(grid_y):
             z_sample = np.array([[xi, yi]])
             # tensor inputs
-            code_input = tf.placeholder(tf.float32, [1,2])
-            x_decoder = decoder(code_input)
+            data = x_train[0].reshape((1, *x_train[0].shape))
+            m, s = sess.run([mean, stddev], feed_dict={
+                inputs: data})
+            code = m + s * z_sample
             # set up session to run decoder
-            with tf.Session() as sess:
-                sess.run(tf.global_variables_initializer())
-                x_decoded = sess.run([x_decoder], feed_dict={code_input: z_sample})
+            x_decoded = sess.run([outputs], feed_dict={
+                samples: code})
             # update progress bar
             bar.next()
             digit = x_decoded[0].reshape(digit_size, digit_size)
@@ -121,3 +122,5 @@ for i in range(n):
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
 plt.show()
+
+test(sess)
