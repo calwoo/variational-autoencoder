@@ -8,13 +8,13 @@ mnist = tf.keras.datasets.mnist
 
 (x_train, y_train),(x_test, y_test) = mnist.load_data()
 x_train, x_test = x_train / 255.0, x_test / 255.0
-x_train = np.expand_dims(x_train, axis=3)
-x_test = np.expand_dims(x_test, axis=3)
+x_train = x_train.reshape(-1, 784)
+x_test = x_test.reshape(-1, 784)
 
-inputs = tf.placeholder(tf.float32, [None, 28, 28, 1], name="inputs")
+inputs = tf.placeholder(tf.float32, [None, 784], name="inputs")
 
 # hyperparameters
-learning_rate = 0.01
+learning_rate = 0.001
 encoding_dim = 2
 
 with tf.name_scope("encoder"):
@@ -94,7 +94,30 @@ def test():
     plt.show()
 
 sess = tf.Session()
-training_flag = True
+training_flag = False
 if training_flag:
-    train(sess, x_train, 0.01, epochs=50)
-test()
+    train(sess, x_train, 0.01, epochs=10)
+
+slice = x_test[:10]
+
+n = slice.shape[0]  # how many digits we will display
+plt.figure(figsize=(20, 4))
+sess.run(tf.global_variables_initializer())
+saver = tf.train.Saver()
+saver.restore(sess, "model/model.ckpt")
+compressed_imgs = sess.run(outputs, feed_dict={inputs:slice})
+for i in range(n):
+    # display original
+    ax = plt.subplot(2, n, i + 1)
+    plt.imshow(slice[i].reshape(28, 28))
+    plt.gray()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    # display reconstruction
+    ax = plt.subplot(2, n, i + 1 + n)
+    plt.imshow(compressed_imgs[i].reshape(28, 28))
+    plt.gray()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+plt.show()

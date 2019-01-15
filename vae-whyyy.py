@@ -110,7 +110,7 @@ def test():
     plt.show()
 
 sess = tf.Session()
-training_flag = True
+training_flag = False
 if training_flag:
     train(sess, x_train, 0.001, epochs=10)
 
@@ -118,6 +118,10 @@ slice = x_test[:10]
 
 n = slice.shape[0]  # how many digits we will display
 plt.figure(figsize=(20, 4))
+_, _, decoded = vae(inputs)
+sess.run(tf.global_variables_initializer())
+saver = tf.train.Saver()
+saver.restore(sess, "model/model.ckpt")
 compressed_imgs = sess.run(decoded, feed_dict={inputs:slice})
 for i in range(n):
     # display original
