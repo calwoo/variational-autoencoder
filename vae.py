@@ -122,7 +122,7 @@ def test():
 sess = tf.Session()
 training_flag = True
 if training_flag:
-    train(sess, x_train, 0.01, epochs=5)
+    train(sess, x_train, 0.01, epochs=50)
 test()
 
 # testing ground
