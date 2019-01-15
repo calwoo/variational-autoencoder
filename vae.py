@@ -17,66 +17,40 @@ inputs = tf.placeholder(tf.float32, [None, 28, 28, 1], name="inputs")
 learning_rate = 0.01
 encoding_dim = 2
 
-def encoder(inputs):
-    with tf.name_scope("encoder"):
-        conv = tf.layers.conv2d(
-            inputs=inputs,
-            filters=1,
-            kernel_size=[5,5],
-            strides=[2,2],
-            padding="valid",
-            activation=tf.nn.relu)
-        flat = tf.layers.flatten(conv)
-        # get mean and stddev
-        mean = tf.layers.dense(flat, encoding_dim, tf.nn.relu)
-        std = tf.layers.dense(flat, encoding_dim, tf.nn.relu)
-    return mean, std
+with tf.name_scope("encoder"):
+    fc1 = tf.layers.dense(inputs, 512, tf.nn.relu)
+    # get mean and stddev
+    mean = tf.layers.dense(fc1, encoding_dim, tf.nn.relu)
+    stddev = tf.layers.dense(fc1, encoding_dim, tf.nn.relu)
     
-def decoder(codes):
-    with tf.name_scope("decoder"):
-        fc_layer = tf.layers.dense(codes, 14*14*encoding_dim, tf.nn.relu)
-        reshaped_codes = tf.reshape(fc_layer, [-1,14,14,encoding_dim])
-        conv_t = tf.layers.conv2d_transpose(
-            inputs=reshaped_codes,
-            filters=1,
-            kernel_size=[5,5],
-            strides=[2,2],
-            padding="same",
-            activation=tf.nn.sigmoid)
-    return conv_t
+dimensions = tf.shape(mean)
+epsilon = tf.random.normal(dimensions, mean=0.0, stddev=1.0)
+samples = mean + stddev * epsilon
 
-def samples(mean, std):
-    dimensions = tf.shape(mean)
-    epsilon = tf.random.normal(dimensions, mean=0.0, stddev=1.0)
-    samples = mean + std * epsilon
-    return samples
+with tf.name_scope("decoder"):
+    fc2 = tf.layers.dense(samples, 512, tf.nn.relu)
+    outputs = tf.layers.dense(fc2, 784, tf.nn.sigmoid)
 
-def vae(input):
-    mean, std = encoder(input)
-    codes = samples(mean, std)
-    decoded = decoder(codes)
-    return mean, std, decoded
-
-def loss_function(input, learning_rate):
-    o_means, o_std, outputs = vae(input)
-    eps = 1e-6
+with tf.name_scope("loss"):
+    eps = 1e-8
     # loss is two parts-- first is the reconstruction loss
-    reconstruction_loss = -tf.reduce_sum(input * tf.log(eps+outputs) + (1-input) * tf.log(eps+1-outputs), 1)
+    reconstruction_loss = -tf.reduce_sum(inputs * tf.log(eps+outputs) + (1-inputs) * tf.log(eps+1-outputs), 1)
     # then we have the KL divergence between encoder gaussian and the prior
     # p(z) = N(z;0,1)
-    kullback_leibner = 0.5 * tf.reduce_sum(tf.log(eps+tf.square(o_std)) - 1 + tf.square(o_means) + tf.square(o_std), 1)
+    kullback_leibner = 0.5 * tf.reduce_sum(-tf.log(eps+tf.square(stddev)) - 1 + tf.square(mean) + tf.square(stddev), 1)
     # total loss is reconstruction + KL
     loss = tf.reduce_mean(reconstruction_loss) + tf.reduce_mean(kullback_leibner)
     optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
-    return loss, optimizer
-    
 
-def train(sess, data, learning_rate, epochs=30):
-    loss, optimizer = loss_function(inputs, learning_rate)
+def train(sess, data, learning_rate, epochs=30, restore=False):
     sess.run(tf.global_variables_initializer())
 
     # we wanna save our spot so we don't have to constantly train this thing...
     saver = tf.train.Saver()
+    
+    if restore:
+      saver.restore(sess, "./model/model.ckpt")
+      print("restored!")
 
     for i in range(epochs):
         _loss, _ = sess.run([loss, optimizer],
@@ -85,7 +59,7 @@ def train(sess, data, learning_rate, epochs=30):
 
         # save checkpoint every 5 epochs
         if i % 5 == 0:
-            saver.save(sess, "./model/model")
+            saver.save(sess, "./model/model.ckpt")
             print("saved the model for ya, chief!")
 
 def test():
@@ -124,16 +98,3 @@ training_flag = True
 if training_flag:
     train(sess, x_train, 0.01, epochs=50)
 test()
-
-# testing ground
-with tf.Session() as sess:
-    data = x_train[:2].reshape(2, *x_train[0].shape)
-    mean, std, decoded = vae(inputs)
-    loss, _ = loss_function(inputs, learning_rate)
-    sess.run(tf.global_variables_initializer())
-    m, s, d = sess.run([mean, std, decoded], feed_dict={inputs:data})
-    _loss = sess.run([loss], feed_dict={inputs:x_train})
-    print("mean: ", m)
-    print("stddev: ", s)
-    # print("decoded: ", d)
-    print("loss: ", _loss)
